@@ -34,13 +34,13 @@ create_migration_table() {
     local ch_conn_str=$(create_clickhouse_string_connection)
 
     local query="CREATE TABLE IF NOT EXISTS helicone_migrations (migration_name String, applied_date DateTime DEFAULT now()) ENGINE = MergeTree() ORDER BY migration_name"
-    [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" $CLICKHOUSE_QUERY_SETTINGS"
+    [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" SETTINGS $CLICKHOUSE_QUERY_SETTINGS"
     query+=";"
 
     if clickhouse-client $ch_conn_str --query="\""$(echo "$query" | tr -d '\n')"\""; then
         echo "Migration table created/verified successfully"
     else
-        echo "Failed to create/verify migration table" >&2
+        echo "Failed to create/verify migration table"
         exit 1
     fi
 }
@@ -71,7 +71,7 @@ mark_migration_as_applied() {
     if clickhouse-client $ch_conn_str --query="\""$(echo "$query" | tr -d '\n')"\""; then
         echo "Migration $migration_name applied successfully."
     else
-        echo "Failed to mark $migration_name as applied" >&2
+        echo "Failed to mark $migration_name as applied"
         exit 1
     fi
 }
@@ -89,13 +89,13 @@ run_migrations() {
 
             local query="$(cat $MIGRATIONS_DIR/$file)"
             query="${query%;}"
-            [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" $CLICKHOUSE_QUERY_SETTINGS"
+            [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" SETTINGS $CLICKHOUSE_QUERY_SETTINGS"
             query+=";"
 
             if clickhouse-client $ch_conn_str --query="\""$(echo "$query" | tr -d '\n')"\""; then
                 mark_migration_as_applied $file
             else
-                echo "Failed to apply migration from $file" >&2
+                echo "Failed to apply migration from $file"
                 exit 1
             fi
         fi
