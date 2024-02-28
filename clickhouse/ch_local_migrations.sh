@@ -27,7 +27,7 @@ create_clickhouse_string_connection() {
     echo $ch_conn_str
 }
 
-# Function to create the migration tracking table
+# Function to create/verify the migration tracking table
 create_migration_table() {
     local ch_conn_str=$(create_clickhouse_string_connection)
 
@@ -38,7 +38,7 @@ create_migration_table() {
     ) ENGINE = MergeTree() ORDER BY migration_name;"
     [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" $CLICKHOUSE_QUERY_SETTINGS"
 
-    if echo "$query" | clickhouse-client $ch_conn_str --query="@-"; then
+    if clickhouse-client $ch_conn_str --query=$query; then
         echo "Migration table created/verified successfully"
     else
         echo "Failed to create/verify migration table" >&2
@@ -55,7 +55,7 @@ is_migration_applied() {
     local query="
     SELECT count(*) FROM helicone_migrations WHERE migration_name = '${migration_name}';"
 
-    if [[ $(echo "$query" | clickhouse-client $ch_conn_str --query="@-") -eq 0 ]]; then
+    if [[ $(clickhouse-client $ch_conn_str --query=$query) -gt 0 ]]; then
         echo "1" # Migration was applied
     else
         echo "0" # Migration not applied
@@ -71,7 +71,7 @@ mark_migration_as_applied() {
     local query="
     INSERT INTO helicone_migrations (migration_name) VALUES ('${migration_name}');"
 
-    if echo "$query" | clickhouse-client $ch_conn_str --query="@-"; then
+    if clickhouse-client $ch_conn_str --query=$query; then
         echo "Migration $migration_name applied successfully."
     else
         echo "Failed to mark $migration_name as applied" >&2
@@ -87,13 +87,13 @@ run_migrations() {
     for file in `ls $MIGRATIONS_DIR | sort -V`; do
 
         migration_applied=$(is_migration_applied $file)
-        if [[ "${migration_applied}" -eq "0" ]]; then
+        if [[ "${migration_applied}" -eq "1" ]]; then
             echo "Applying migration from file: $file"
 
             local query="$(cat $MIGRATIONS_DIR/$file)"
             [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" $CLICKHOUSE_QUERY_SETTINGS"
 
-            if echo "$query" | clickhouse-client $ch_conn_str --query="@-"; then
+            if clickhouse-client $ch_conn_str --query=$query; then
                 mark_migration_as_applied $file
             else
                 echo "Failed to apply migration from $file" >&2
