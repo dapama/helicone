@@ -1,6 +1,7 @@
 #!/bin/bash
 # Any command that fails will cause the entire script to exit immediately
 set -e
+set -x #! Print each command before executing it for debugging 
 
 # Directory where your migration files are stored
 MIGRATIONS_DIR="./migrations"
