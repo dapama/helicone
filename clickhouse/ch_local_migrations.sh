@@ -40,7 +40,7 @@ create_migration_table() {
 
     if echo "$query" | clickhouse-client $ch_conn_str --query="@-"; then
         echo "Migration table created/verified successfully"
-    else 
+    else
         echo "Failed to create/verify migration table" >&2
         exit 1
     fi
@@ -67,13 +67,13 @@ is_migration_applied() {
 mark_migration_as_applied() {
     local ch_conn_str=$(create_clickhouse_string_connection)
     local migration_name=$1
-    
+
     local query="
     INSERT INTO helicone_migrations (migration_name) VALUES ('${migration_name}');"
 
     if echo "$query" | clickhouse-client $ch_conn_str --query="@-"; then
         echo "Migration $migration_name applied successfully."
-    else 
+    else
         echo "Failed to mark $migration_name as applied" >&2
         exit 1
     fi
@@ -85,17 +85,17 @@ run_migrations() {
     local ch_conn_str=$(create_clickhouse_string_connection)
 
     for file in `ls $MIGRATIONS_DIR | sort -V`; do
-        
+
         migration_applied=$(is_migration_applied $file)
         if [[ "${migration_applied}" -eq "0" ]]; then
             echo "Applying migration from file: $file"
-            
+
             local query="$(cat $MIGRATIONS_DIR/$file)"
             [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" $CLICKHOUSE_QUERY_SETTINGS"
-            
+
             if echo "$query" | clickhouse-client $ch_conn_str --query="@-"; then
                 mark_migration_as_applied $file
-            else 
+            else
                 echo "Failed to apply migration from $file" >&2
                 exit 1
             fi
