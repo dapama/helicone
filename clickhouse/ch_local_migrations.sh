@@ -1,4 +1,6 @@
 #!/bin/bash
+# # Any command that fails will cause the entire script to exit immediately
+set -e
 
 # Directory where your migration files are stored
 MIGRATIONS_DIR="./migrations"
@@ -31,12 +33,12 @@ create_clickhouse_string_connection() {
 create_migration_table() {
     local ch_conn_str=$(create_clickhouse_string_connection)
 
-    local query="
-    CREATE TABLE IF NOT EXISTS helicone_migrations (
+    local query="CREATE TABLE IF NOT EXISTS helicone_migrations (
         migration_name String,
         applied_date DateTime DEFAULT now()
-    ) ENGINE = MergeTree() ORDER BY migration_name;"
+    ) ENGINE = MergeTree() ORDER BY migration_name"
     [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" $CLICKHOUSE_QUERY_SETTINGS"
+    query+=";"
 
     if clickhouse-client $ch_conn_str --query=$query; then
         echo "Migration table created/verified successfully"
@@ -52,8 +54,7 @@ is_migration_applied() {
     local ch_conn_str=$(create_clickhouse_string_connection)
     local migration_name=$1
 
-    local query="
-    SELECT count(*) FROM helicone_migrations WHERE migration_name = '${migration_name}';"
+    local query="SELECT count(*) FROM helicone_migrations WHERE migration_name = '${migration_name}';"
 
     if [[ $(clickhouse-client $ch_conn_str --query=$query) -gt 0 ]]; then
         echo "1" # Migration was applied
@@ -68,8 +69,7 @@ mark_migration_as_applied() {
     local ch_conn_str=$(create_clickhouse_string_connection)
     local migration_name=$1
 
-    local query="
-    INSERT INTO helicone_migrations (migration_name) VALUES ('${migration_name}');"
+    local query="INSERT INTO helicone_migrations (migration_name) VALUES ('${migration_name}');"
 
     if clickhouse-client $ch_conn_str --query=$query; then
         echo "Migration $migration_name applied successfully."
@@ -91,7 +91,9 @@ run_migrations() {
             echo "Applying migration from file: $file"
 
             local query="$(cat $MIGRATIONS_DIR/$file)"
+            query="${query%;}"
             [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" $CLICKHOUSE_QUERY_SETTINGS"
+            query+=";"
 
             if clickhouse-client $ch_conn_str --query=$query; then
                 mark_migration_as_applied $file
