@@ -38,8 +38,7 @@ create_migration_table() {
     [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" SETTINGS $CLICKHOUSE_QUERY_SETTINGS"
     query+=";"
 
-    echo "clickhouse-client $ch_conn_str --query $(echo "\""$(echo "$query" | tr -d '\n')"\"")"
-    clickhouse-client $ch_conn_str --query $(echo "\""$(echo "$query" | tr -d '\n')"\"")
+    clickhouse-client $ch_conn_str --query "$(echo "$query" | tr -d '\n')"
     if [ $? -eq 0 ]; then
         echo "Migration table created/verified successfully"
     else
