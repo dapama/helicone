@@ -78,5 +78,31 @@ alter table "public"."experiments" validate constraint "experiments_test_prompt_
 alter table "public"."prompts" add constraint "prompts_uuid_key" UNIQUE using index "prompts_uuid_key";
 
 
+alter table "public"."prompts" drop constraint "prompts_pkey";
+
+drop index if exists "public"."prompts_pkey";
+
+alter table "public"."experiment_dataset" add column "organization_id" uuid not null;
+
+CREATE UNIQUE INDEX prompts_pkey ON public.prompts USING btree (id, organization_id, version, uuid);
+
+alter table "public"."prompts" add constraint "prompts_pkey" PRIMARY KEY using index "prompts_pkey";
+
+alter table "public"."experiment_dataset" add constraint "experiment_dataset_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES organization(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+
+alter table "public"."experiment_dataset" validate constraint "experiment_dataset_organization_id_fkey";
+
+alter table "public"."experiments" add column "organization_id" uuid not null;
+
+alter table "public"."experiments" add constraint "experiments_organization_id_fkey" FOREIGN KEY (organization_id) REFERENCES organization(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+
+alter table "public"."experiments" validate constraint "experiments_organization_id_fkey";
+
+
+alter table "public"."experiments" add column "provider_key" uuid not null;
+
+alter table "public"."experiments" add constraint "experiments_provider_key_fkey" FOREIGN KEY (provider_key) REFERENCES provider_keys(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+
+alter table "public"."experiments" validate constraint "experiments_provider_key_fkey";
 
 
