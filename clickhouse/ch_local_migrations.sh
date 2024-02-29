@@ -1,7 +1,7 @@
 #!/bin/bash
 # Any command that fails will cause the entire script to exit immediately
-set -e
-set -x #! Print each command before executing it for debugging 
+set -euxo pipefail
+# set -x #! Print each command before executing it for debugging 
 
 # Directory where your migration files are stored
 MIGRATIONS_DIR="./migrations"
@@ -38,7 +38,7 @@ create_migration_table() {
     [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" SETTINGS $CLICKHOUSE_QUERY_SETTINGS"
     query+=";"
 
-    clickhouse-client $ch_conn_str --query "$(echo "$query" | tr -d '\n')"
+    clickhouse-client $ch_conn_str --query "$query"
     if [ $? -eq 0 ]; then
         echo "Migration table created/verified successfully"
     else
@@ -55,10 +55,13 @@ is_migration_applied() {
 
     local query="SELECT count(*) FROM helicone_migrations WHERE migration_name = '${migration_name}';"
 
-    local result=$(clickhouse-client $ch_conn_str --query $(echo "\""$(echo "$query" | tr -d '\n')"\""))
+    local result=$(clickhouse-client $ch_conn_str --query "$query")
 
-    if [[ "${result}" -gt 0 ]]; then
-        echo "1" # Migration was applied
+    if [[ "${result}" -eq "" ]]; then
+        echo "There was a failure to retrieving the migrations table rows."
+        exit 1
+    elif [[ ${result} -gt 0 ]]; then
+        echo "1" # Migration was applied previously
     else
         echo "0" # Migration not applied
     fi
@@ -72,7 +75,7 @@ mark_migration_as_applied() {
 
     local query="INSERT INTO helicone_migrations (migration_name) VALUES ('${migration_name}');"
 
-    clickhouse-client $ch_conn_str --query $(echo "\""$(echo "$query" | tr -d '\n')"\"")
+    clickhouse-client $ch_conn_str --query "$query"
     if [ $? -eq 0 ]; then
         echo "Migration $migration_name applied successfully."
     else
@@ -89,7 +92,7 @@ run_migrations() {
     for file in `ls $MIGRATIONS_DIR | sort -V`; do
 
         migration_applied=$(is_migration_applied $file)
-        if [[ "${migration_applied}" -eq "1" ]]; then
+        if [[ "${migration_applied}" -eq "0" ]]; then
             echo "Applying migration from file: $file"
 
             local query="$(cat $MIGRATIONS_DIR/$file)"
@@ -97,7 +100,7 @@ run_migrations() {
             [[ -n "$CLICKHOUSE_QUERY_SETTINGS" ]] && query+=" SETTINGS $CLICKHOUSE_QUERY_SETTINGS"
             query+=";"
 
-            clickhouse-client $ch_conn_str --query $(echo "\""$(echo "$query" | tr -d '\n')"\"")
+            clickhouse-client $ch_conn_str --query "$(echo "$query" | tr '\n' ' ')"
             if [ $? -eq 0 ]; then
                 mark_migration_as_applied $file
             else
