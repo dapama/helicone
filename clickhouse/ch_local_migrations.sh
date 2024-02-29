@@ -57,8 +57,8 @@ is_migration_applied() {
 
     local result=$(clickhouse-client $ch_conn_str --query "$query")
 
-    if [[ "${result}" -eq "" ]]; then
-        echo "There was a failure to retrieving the migrations table rows."
+    if [[ -z $result ]]; then
+        echo "There was a failure retrieving the migrations table rows."
         exit 1
     elif [[ ${result} -gt 0 ]]; then
         echo "1" # Migration was applied previously
